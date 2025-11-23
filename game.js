@@ -185,13 +185,15 @@ document.addEventListener('DOMContentLoaded', () => {
             drag: function(event, ui) {
                 if (!draggedBlock) return;
 
-                // Calculate the grid position based on the helper's position
-                const helperOffset = ui.offset;
                 const canvasOffset = $(canvas).offset();
 
+                // Get current mouse/touch position relative to the document
+                const pageX = event.pageX;
+                const pageY = event.pageY;
+
                 // Calculate position relative to the canvas
-                const x = helperOffset.left + (ui.helper.width() / 2) - canvasOffset.left;
-                const y = helperOffset.top + (ui.helper.height() / 2) - canvasOffset.top;
+                const x = pageX - canvasOffset.left;
+                const y = pageY - canvasOffset.top;
                 
                 const gridX = Math.floor(x / CELL_SIZE);
                 const gridY = Math.floor(y / CELL_SIZE);
@@ -201,6 +203,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 ghostBlock = { shape, color, x: gridX, y: gridY };
                 draw(); // Redraw to show the ghost
+
+                console.log(`DRAG: pageX: ${pageX}, pageY: ${pageY}, canvasOffset: ${canvasOffset.left},${canvasOffset.top}, x: ${x}, y: ${y}, gridX: ${gridX}, gridY: ${gridY}`);
             },
             stop: function(event, ui) {
                 // This 'stop' occurs whether it was dropped validly or reverted
@@ -254,11 +258,15 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         over: function(event, ui) {
             // When draggable is hovered over droppable, update ghostBlock
-            const helperOffset = ui.offset;
             const canvasOffset = $(canvas).offset();
+            
+            // Get current mouse/touch position relative to the document from the event
+            const pageX = event.pageX;
+            const pageY = event.pageY;
 
-            const x = helperOffset.left + (ui.helper.width() / 2) - canvasOffset.left;
-            const y = helperOffset.top + (ui.helper.height() / 2) - canvasOffset.top;
+            // Calculate position relative to the canvas
+            const x = pageX - canvasOffset.left;
+            const y = pageY - canvasOffset.top;
             
             const gridX = Math.floor(x / CELL_SIZE);
             const gridY = Math.floor(y / CELL_SIZE);
@@ -268,6 +276,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             ghostBlock = { shape, color, x: gridX, y: gridY };
             draw();
+
+            console.log(`OVER: pageX: ${pageX}, pageY: ${pageY}, canvasOffset: ${canvasOffset.left},${canvasOffset.top}, x: ${x}, y: ${y}, gridX: ${gridX}, gridY: ${gridY}`);
         },
         out: function(event, ui) {
             // When draggable leaves droppable, clear ghostBlock
