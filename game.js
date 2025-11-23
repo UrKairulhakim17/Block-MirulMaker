@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const blockElement = createBlockElement(blockInfo);
             blockContainer.appendChild(blockElement);
         }
-        checkGameOver();
+        // Removed checkGameOver() call from here
     }
 
     function createBlockElement(blockInfo) {
@@ -340,35 +340,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function checkGameOver() {
         console.log("checkGameOver() called.");
-        const availableBlocks = Array.from(blockContainer.children);
+        let availableBlocks = Array.from(blockContainer.children);
         console.log(`Available blocks in container: ${availableBlocks.length}`);
 
-        if (availableBlocks.length === 0) {
-            console.log("No blocks in container, returning.");
-            return; 
-        }
-
-        let anyBlockCanBePlaced = false;
-        for (const blockEl of availableBlocks) {
-            const shape = JSON.parse(blockEl.dataset.shape);
-            const color = blockEl.dataset.color;
-            console.log(`Checking block: ${blockEl.dataset.name || 'Unnamed'} (Shape: ${JSON.stringify(shape)})`);
-
-            for (let r = 0; r < GRID_SIZE; r++) {
-                for (let c = 0; c < GRID_SIZE; c++) {
-                    const tempBlock = { shape, color, x: c, y: r };
-                    if (isValidPlacement(tempBlock)) {
-                        console.log(`  -> Valid placement found at (${c}, ${r}) for this block.`);
-                        anyBlockCanBePlaced = true;
-                        break;
+        // Helper function to check if any block can be placed
+        const canAnyBlockBePlaced = (blocksToCheck) => {
+            for (const blockEl of blocksToCheck) {
+                const shape = JSON.parse(blockEl.dataset.shape);
+                const color = blockEl.dataset.color; // color is not used in isValidPlacement, but keeping it for consistency
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        const tempBlock = { shape, color, x: c, y: r };
+                        if (isValidPlacement(tempBlock)) {
+                            return true;
+                        }
                     }
                 }
-                if (anyBlockCanBePlaced) break;
             }
-            if (anyBlockCanBePlaced) break;
+            return false;
+        };
+
+        let anyBlockCanBePlacedNow = canAnyBlockBePlaced(availableBlocks);
+
+        if (availableBlocks.length === 0) {
+            // All blocks have been placed, generate new ones unconditionally.
+            console.log("All blocks placed. Generating new ones.");
+            generateAvailableBlocks();
+            availableBlocks = Array.from(blockContainer.children); // Get newly generated blocks
+            anyBlockCanBePlacedNow = canAnyBlockBePlaced(availableBlocks); // Re-check with new blocks
         }
 
-        if (!anyBlockCanBePlaced) {
+        if (!anyBlockCanBePlacedNow) {
+            // No blocks (either current or newly generated) can be placed. Game Over.
             console.log("No valid placements found for any available block. GAME OVER.");
             isGameOver = true;
             if (score > highScore) {
@@ -376,10 +379,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('blockPuzzleHighScore', highScore);
                 updateHighScoreDisplay();
             }
-            // The GAME OVER message is drawn directly in the draw() loop
-            // The debug console logs will still be there for verification
         } else {
+            // At least one block can be placed, game continues.
             console.log("Valid placements still possible. Game continues.");
+            isGameOver = false;
         }
     }
     
