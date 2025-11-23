@@ -1,0 +1,161 @@
+:root {
+    --grid-size: 8;
+    --cell-size-desktop: 50px; /* Base cell size for desktop */
+    --grid-width-desktop: calc(var(--grid-size) * var(--cell-size-desktop));
+    
+    /* Light Theme Colors */
+    --bg-color: #f0f0f0;
+    --text-color: #333;
+    --grid-bg: #fff;
+    --grid-border: #333;
+    --grid-lines-major: #999;
+    --grid-lines-minor: #eee;
+    --invalid-placement-color: #F00;
+    --button-bg: #e0e0e0;
+    --button-text: #333;
+}
+
+.dark-theme {
+    /* Dark Theme Colors */
+    --bg-color: #2c2c2c;
+    --text-color: #f0f0f0;
+    --grid-bg: #444;
+    --grid-border: #f0f0f0;
+    --grid-lines-major: #888;
+    --grid-lines-minor: #666;
+    --invalid-placement-color: #F00;
+    --button-bg: #555;
+    --button-text: #f0f0f0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s, color 0.3s;
+    padding: 10px; /* Add some padding for mobile */
+    box-sizing: border-box; /* Include padding in element's total width and height */
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: var(--grid-width-desktop); /* Use desktop width as base */
+    max-width: 90vw; /* Max width for responsiveness */
+    margin-bottom: 10px;
+}
+
+h1 {
+    font-size: 2em;
+}
+
+#theme-switcher {
+    padding: 8px 12px;
+    border: 1px solid var(--grid-border);
+    border-radius: 5px;
+    background-color: var(--button-bg);
+    color: var(--button-text);
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+    font-size: 0.9em;
+}
+
+.game-container {
+    display: flex; /* Use flexbox for layout */
+    flex-direction: column; /* Default to column for mobile */
+    align-items: center;
+    gap: 20px;
+    max-width: 100%;
+}
+
+.score-container, .high-score-container {
+    font-size: 1.5em;
+    margin-bottom: 10px;
+    white-space: nowrap; /* Keep score on one line */
+}
+
+#gameGrid {
+    border: 2px solid var(--grid-border);
+    background-color: var(--grid-bg);
+    width: calc(100vw - 40px); /* Adjust for padding, will be overridden by JS */
+    height: calc(100vw - 40px); /* Adjust for padding, will be overridden by JS */
+    max-width: var(--grid-width-desktop); /* Limit desktop size */
+    max-height: var(--grid-width-desktop); /* Limit desktop size */
+    box-sizing: border-box;
+}
+
+#block-container {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap; /* Allow blocks to wrap on smaller screens */
+    gap: 15px; /* Reduced gap for mobile */
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid var(--grid-border);
+    background-color: var(--grid-bg);
+    border-radius: 8px;
+}
+
+.block {
+    display: grid;
+    cursor: grab;
+    touch-action: none;
+    /* Block cells will be scaled by JS */
+}
+
+/* Media Queries for Desktop */
+@media (min-width: 768px) {
+    .game-container {
+        flex-direction: row; /* Row layout for desktop */
+        align-items: flex-start; /* Align items to the top */
+    }
+
+    .header {
+        width: var(--grid-width-desktop);
+    }
+
+    #gameGrid {
+        width: var(--grid-width-desktop);
+        height: var(--grid-width-desktop);
+    }
+
+    #block-container {
+        flex-direction: column; /* Stack blocks vertically on desktop */
+        height: auto; /* Allow height to adjust */
+        padding: 15px;
+        gap: 20px;
+    }
+    
+    .score-container, .high-score-container {
+        font-size: 1.5em; /* Restore desktop font size */
+        margin-bottom: 10px;
+    }
+
+    .block-cell {
+        width: 25px; /* Base size for preview blocks */
+        height: 25px;
+        border-radius: 3px;
+        box-shadow: inset 0px 0px 5px rgba(0, 0, 0, 0.2);
+    }
+}
+
+/* Small screen adjustments */
+@media (max-width: 480px) {
+    h1 {
+        font-size: 1.5em;
+    }
+    #theme-switcher {
+        font-size: 0.8em;
+        padding: 6px 10px;
+    }
+    .score-container, .high-score-container {
+        font-size: 1.2em;
+    }
+}

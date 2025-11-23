@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Block MirulMaker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="header">
+        <h1>Block Puzzle</h1>
+        <button id="theme-switcher">Toggle Theme</button>
+    </div>
+    <div class="game-container">
+        <div class="score-container">
+            Score: <span id="score">0</span>
+        </div>
+        <div class="high-score-container">
+            Highest Score: <span id="high-score">0</span>
+        </div>
+        <canvas id="gameGrid" width="400" height="400"></canvas>
+        <div id="block-container">
+            <!-- Available blocks will be generated here by JS -->
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
