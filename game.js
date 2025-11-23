@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let draggedBlock = null;
     let ghostBlock = null;
+    let isDragging = false; // Added back for native touch events
     let currentMessage = null; // {text: "msg", color: "col", startTime: Date.now()}
 
     // --- Theme Switching ---
@@ -68,6 +69,24 @@ document.addEventListener('DOMContentLoaded', () => {
             G = (f >> 8) & 0x00ff,
             B = (f >> 8) & 0x0000ff;
         return "#" + (0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 0x100 + (Math.round((t - B) * p) + B)).toString(16).slice(1);
+    }
+
+    // Helper to get coordinates from mouse or touch events
+    function getEventCoords(e) {
+        const rect = canvas.getBoundingClientRect();
+        let clientX, clientY;
+
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
     }
 
     // Easing function for smoother animations (ease-out quad)
@@ -148,93 +167,147 @@ document.addEventListener('DOMContentLoaded', () => {
         blockElement.dataset.shape = JSON.stringify(blockInfo.shape);
         blockElement.dataset.color = blockInfo.color;
         
-        // Initialize as jQuery UI draggable
-        $(blockElement).draggable({
-            revert: 'invalid', // Revert if not dropped on a valid target
-            helper: 'clone', // Create a clone for dragging
-            opacity: 0.7, // Visual feedback during drag
-            start: function(event, ui) {
-                if (isGameOver) {
-                    return false; // Prevent dragging if game is over
-                }
-                draggedBlock = this; // 'this' refers to the original DOM element
-                // Visually make the original block transparent while dragging the clone
-                $(draggedBlock).css('opacity', '0.5');
-            },
-            drag: function(event, ui) {
-                // Calculate ghost block position based on current drag helper position
-                const rect = canvas.getBoundingClientRect();
-                const x = event.clientX - rect.left;
-                const y = event.clientY - rect.top;
-
-                const gridX = Math.floor(x / CELL_SIZE);
-                const gridY = Math.floor(y / CELL_SIZE);
-
-                const shape = JSON.parse(draggedBlock.dataset.shape);
-                const color = draggedBlock.dataset.color;
-
-                ghostBlock = { shape, color, x: gridX, y: gridY };
-                draw(); // Redraw to show the ghost
-            },
-            stop: function(event, ui) {
-                // This 'stop' event is called whether the drag was successful or not.
-                // The actual drop logic will happen in the droppable's 'drop' event.
-                // We just need to reset here if it wasn't dropped validly.
-                
-                // If the block was successfully dropped, it would have been removed.
-                // If it wasn't removed (i.e., invalid drop), reset its opacity.
-                if (draggedBlock && draggedBlock.parentNode) { // Check if it's still in the DOM
-                     $(draggedBlock).css('opacity', '1');
-                }
-                draggedBlock = null;
-                ghostBlock = null;
-                draw(); // Clear ghost block
+        blockElement.addEventListener('dragstart', (e) => {
+            if (isGameOver) {
+                e.preventDefault(); // Prevent dragging if game is over
+                return;
             }
+            draggedBlock = e.target;
+            setTimeout(() => e.target.style.opacity = '0.5', 0);
+        });
+
+        blockElement.addEventListener('dragend', (e) => {
+            draggedBlock = null;
+            ghostBlock = null;
+            e.target.style.opacity = '1';
+            draw();
+        });
+
+        // Touch event listeners for mobile dragging
+        blockElement.addEventListener('touchstart', (e) => {
+            if (isGameOver) {
+                e.preventDefault();
+                return;
+            }
+            e.preventDefault(); // Prevent scrolling
+            isDragging = true;
+            draggedBlock = e.target;
+            // Set opacity after a slight delay to ensure the event propagates
+            setTimeout(() => e.target.style.opacity = '0.5', 0);
+            
+            // Initial ghost block position calculation for touchstart
+            const coords = getEventCoords(e);
+            const rect = canvas.getBoundingClientRect();
+            const x = coords.x;
+            const y = coords.y;
+
+            const gridX = Math.floor(x / CELL_SIZE);
+            const gridY = Math.floor(y / CELL_SIZE);
+
+            const shape = JSON.parse(draggedBlock.dataset.shape);
+            const color = draggedBlock.dataset.color;
+
+            ghostBlock = { shape, color, x: gridX, y: gridY };
+            draw();
         });
 
         return blockElement;
     }
 
     // --- Drag and Drop Logic ---
-    // Initialize canvas as a jQuery UI droppable target
-    $(canvas).droppable({
-        drop: function(event, ui) {
-            if (isGameOver) {
-                return;
-            }
-            // ui.draggable is the jQuery object of the draggable (the block)
-            // ui.helper is the jQuery object of the clone being dragged
+    canvas.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (!draggedBlock || isGameOver) return;
 
-            // Need to get the actual DOM element for draggedBlock logic
-            // The draggedBlock variable should already be set from the draggable's 'start' event
-            if (!draggedBlock || !ghostBlock) {
-                 // Reset opacity if drop failed for some reason
-                 $(ui.draggable[0]).css('opacity', '1');
-                 return;
-            }
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
 
-            if (isValidPlacement(ghostBlock)) {
-                placeBlock(ghostBlock);
-                // Remove the original block from the block container
-                $(draggedBlock).remove();
-                if (blockContainer.children.length === 0) {
-                    generateAvailableBlocks();
-                }
-                clearLines();
-                checkGameOver();
-            } else {
-                displayMessage('Invalid placement!', 'red', 1000);
+        const gridX = Math.floor(x / CELL_SIZE);
+        const gridY = Math.floor(y / CELL_SIZE);
+
+        const shape = JSON.parse(draggedBlock.dataset.shape);
+        const color = draggedBlock.dataset.color;
+
+        ghostBlock = { shape, color, x: gridX, y: gridY };
+        draw(); // Redraw to show the ghost
+    });
+
+    canvas.addEventListener('drop', (e) => {
+        e.preventDefault();
+        // Mouse drop logic
+        if (!draggedBlock || !ghostBlock || isGameOver) return;
+
+        if (isValidPlacement(ghostBlock)) {
+            placeBlock(ghostBlock);
+            draggedBlock.remove();
+            if (blockContainer.children.length === 0) {
+                generateAvailableBlocks();
             }
-            
-            // Reset block and ghost states
+            clearLines();
+            checkGameOver();
+        }
+        ghostBlock = null;
+        if (draggedBlock) { // Ensure draggedBlock is not null before accessing style
+            draggedBlock.style.opacity = '1';
+        }
+        draggedBlock = null;
+        draw();
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault(); // Prevent scrolling
+        if (!isDragging || !draggedBlock || isGameOver) return;
+
+        const coords = getEventCoords(e);
+        const gridX = Math.floor(coords.x / CELL_SIZE);
+        const gridY = Math.floor(coords.y / CELL_SIZE);
+
+        const shape = JSON.parse(draggedBlock.dataset.shape);
+        const color = draggedBlock.dataset.color;
+
+        ghostBlock = { shape, color, x: gridX, y: gridY };
+        draw();
+    });
+
+    canvas.addEventListener('touchend', (e) => {
+        if (!isDragging || !draggedBlock || !ghostBlock || isGameOver) {
+            // Reset opacity if a drag was initiated but not successfully dropped
             if (draggedBlock) {
-                $(draggedBlock).css('opacity', '1');
+                draggedBlock.style.opacity = '1';
             }
+            isDragging = false;
             draggedBlock = null;
             ghostBlock = null;
             draw();
+            return;
         }
+
+        if (isValidPlacement(ghostBlock)) {
+            placeBlock(ghostBlock);
+            // Ensure draggedBlock is still in the DOM before trying to remove it
+            if (draggedBlock && draggedBlock.parentNode) {
+                draggedBlock.remove();
+            }
+            if (blockContainer.children.length === 0) {
+                generateAvailableBlocks();
+            }
+            clearLines();
+            checkGameOver();
+        } else {
+            // If placement is invalid, give feedback (e.g., shake, message)
+            displayMessage('Invalid placement!', 'red', 1000);
+        }
+        
+        if (draggedBlock) { // Reset opacity of the original block
+            draggedBlock.style.opacity = '1';
+        }
+        isDragging = false;
+        draggedBlock = null;
+        ghostBlock = null;
+        draw();
     });
+    
     
     // --- Game Logic ---
     function isValidPlacement(block, checkGrid = grid) {
