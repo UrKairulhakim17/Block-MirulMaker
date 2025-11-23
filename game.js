@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let draggedBlock = null;
     let ghostBlock = null;
+    let isDragging = false; // Added for touch events
     let currentMessage = null; // {text: "msg", color: "col", startTime: Date.now()}
 
     // --- Theme Switching ---
@@ -68,6 +69,24 @@ document.addEventListener('DOMContentLoaded', () => {
             G = (f >> 8) & 0x00ff,
             B = (f >> 8) & 0x0000ff;
         return "#" + (0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 0x100 + (Math.round((t - B) * p) + B)).toString(16).slice(1);
+    }
+
+    // Helper to get coordinates from mouse or touch events
+    function getEventCoords(e) {
+        const rect = canvas.getBoundingClientRect();
+        let clientX, clientY;
+
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
     }
 
     // --- Responsive Sizing ---
@@ -159,6 +178,35 @@ document.addEventListener('DOMContentLoaded', () => {
             draw();
         });
 
+        // Touch event listeners for mobile dragging
+        blockElement.addEventListener('touchstart', (e) => {
+            if (isGameOver) {
+                e.preventDefault();
+                return;
+            }
+            e.preventDefault(); // Prevent scrolling
+            isDragging = true;
+            draggedBlock = e.target;
+            // Set opacity after a slight delay to ensure the event propagates
+            setTimeout(() => e.target.style.opacity = '0.5', 0);
+            
+            // Initial ghost block position calculation for touchstart
+            const coords = getEventCoords(e);
+            const rect = canvas.getBoundingClientRect();
+            const x = coords.x;
+            const y = coords.y;
+
+            const gridX = Math.floor(x / CELL_SIZE);
+            const gridY = Math.floor(y / CELL_SIZE);
+
+            const shape = JSON.parse(draggedBlock.dataset.shape);
+            const color = draggedBlock.dataset.color;
+
+            ghostBlock = { shape, color, x: gridX, y: gridY };
+            draw();
+        });
+
+
         return blockElement;
     }
 
@@ -183,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     canvas.addEventListener('drop', (e) => {
         e.preventDefault();
+        // Mouse drop logic
         if (!draggedBlock || !ghostBlock || isGameOver) return;
 
         if (isValidPlacement(ghostBlock)) {
@@ -195,7 +244,63 @@ document.addEventListener('DOMContentLoaded', () => {
             checkGameOver();
         }
         ghostBlock = null;
+        if (draggedBlock) { // Ensure draggedBlock is not null before accessing style
+            draggedBlock.style.opacity = '1';
+        }
         draggedBlock = null;
+        draw();
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault(); // Prevent scrolling
+        if (!isDragging || !draggedBlock || isGameOver) return;
+
+        const coords = getEventCoords(e);
+        const gridX = Math.floor(coords.x / CELL_SIZE);
+        const gridY = Math.floor(coords.y / CELL_SIZE);
+
+        const shape = JSON.parse(draggedBlock.dataset.shape);
+        const color = draggedBlock.dataset.color;
+
+        ghostBlock = { shape, color, x: gridX, y: gridY };
+        draw();
+    });
+
+    canvas.addEventListener('touchend', (e) => {
+        if (!isDragging || !draggedBlock || !ghostBlock || isGameOver) {
+            // Reset opacity if a drag was initiated but not successfully dropped
+            if (draggedBlock) {
+                draggedBlock.style.opacity = '1';
+            }
+            isDragging = false;
+            draggedBlock = null;
+            ghostBlock = null;
+            draw();
+            return;
+        }
+
+        if (isValidPlacement(ghostBlock)) {
+            placeBlock(ghostBlock);
+            // Ensure draggedBlock is still in the DOM before trying to remove it
+            if (draggedBlock && draggedBlock.parentNode) {
+                draggedBlock.remove();
+            }
+            if (blockContainer.children.length === 0) {
+                generateAvailableBlocks();
+            }
+            clearLines();
+            checkGameOver();
+        } else {
+            // If placement is invalid, give feedback (e.g., shake, message)
+            displayMessage('Invalid placement!', 'red', 1000);
+        }
+        
+        if (draggedBlock) { // Reset opacity of the original block
+            draggedBlock.style.opacity = '1';
+        }
+        isDragging = false;
+        draggedBlock = null;
+        ghostBlock = null;
         draw();
     });
     
