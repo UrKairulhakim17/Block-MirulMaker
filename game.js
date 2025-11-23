@@ -89,6 +89,11 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    // Easing function for smoother animations (ease-out quad)
+    function easeOutQuad(t) {
+        return t * (2 - t);
+    }
+
     // --- Responsive Sizing ---
     function adjustCanvasAndCellSizes() {
         // Get the computed width from CSS after layout, ensuring responsiveness
@@ -577,8 +582,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const progress = elapsed / POP_ANIMATION_DURATION;
             
             if (progress < 1) {
-                const alpha = 1 - progress; // Fade out
-                const scale = 1 - progress * 0.5; // Shrink slightly
+                const easedProgress = easeOutQuad(progress); // Apply easing
+                const alpha = 1 - easedProgress; // Fade out with easing
+                const scale = 1 - easedProgress * 0.5; // Shrink slightly with easing
 
                 const drawSize = CELL_SIZE * scale;
                 const offset = (CELL_SIZE - drawSize) / 2;
