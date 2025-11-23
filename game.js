@@ -166,163 +166,138 @@ document.addEventListener('DOMContentLoaded', () => {
 
         blockElement.dataset.shape = JSON.stringify(blockInfo.shape);
         blockElement.dataset.color = blockInfo.color;
+
+        // Make block draggable with jQuery UI
+        $(blockElement).draggable({
+            revert: 'invalid', // Snap back if not dropped on a valid target
+            helper: 'clone',   // Drag a clone, leave original in place
+            appendTo: 'body',  // Append helper to body to prevent clipping
+            cursor: 'grabbing',
+            start: function(event, ui) {
+                if (isGameOver) {
+                    $(this).draggable('cancel'); // Prevent dragging if game is over
+                    return;
+                }
+                draggedBlock = this; // 'this' refers to the original DOM element
+                // Store initial position of the helper for calculation if needed
+                $(ui.helper).data('original-offset', ui.offset);
+            },
+            drag: function(event, ui) {
+                if (!draggedBlock) return;
+
+                // Calculate the grid position based on the helper's position
+                const helperOffset = ui.offset;
+                const canvasOffset = $(canvas).offset();
+
+                // Calculate position relative to the canvas
+                const x = helperOffset.left + (ui.helper.width() / 2) - canvasOffset.left;
+                const y = helperOffset.top + (ui.helper.height() / 2) - canvasOffset.top;
+                
+                const gridX = Math.floor(x / CELL_SIZE);
+                const gridY = Math.floor(y / CELL_SIZE);
+
+                const shape = JSON.parse(draggedBlock.dataset.shape);
+                const color = draggedBlock.dataset.color;
+
+                ghostBlock = { shape, color, x: gridX, y: gridY };
+                draw(); // Redraw to show the ghost
+            },
+            stop: function(event, ui) {
+                // This 'stop' occurs whether it was dropped validly or reverted
+                ghostBlock = null;
+                draggedBlock = null;
+                draw();
+            }
+        });
         
-        blockElement.addEventListener('dragstart', (e) => {
-            if (isGameOver) {
-                e.preventDefault(); // Prevent dragging if game is over
-                return;
-            }
-            draggedBlock = e.target;
-            setTimeout(() => e.target.style.opacity = '0.5', 0);
-        });
-
-        blockElement.addEventListener('dragend', (e) => {
-            draggedBlock = null;
-            ghostBlock = null;
-            e.target.style.opacity = '1';
-            draw();
-        });
-
-        // Touch event listeners for mobile dragging
-        blockElement.addEventListener('touchstart', (e) => {
-            if (isGameOver) {
-                e.preventDefault();
-                return;
-            }
-            e.preventDefault(); // Prevent scrolling
-            isDragging = true;
-            draggedBlock = e.target;
-            // Set opacity after a slight delay to ensure the event propagates
-            setTimeout(() => e.target.style.opacity = '0.5', 0);
-            
-            // Initial ghost block position calculation for touchstart
-            const coords = getEventCoords(e);
-            const rect = canvas.getBoundingClientRect();
-            const x = coords.x;
-            const y = coords.y;
-
-            const gridX = Math.floor(x / CELL_SIZE);
-            const gridY = Math.floor(y / CELL_SIZE);
-
-            const shape = JSON.parse(draggedBlock.dataset.shape);
-            const color = draggedBlock.dataset.color;
-
-            ghostBlock = { shape, color, x: gridX, y: gridY };
-            draw();
-        });
-
         return blockElement;
     }
 
     // --- Drag and Drop Logic ---
-    canvas.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        if (!draggedBlock || isGameOver) return;
+    // (jQuery UI Draggable/Droppable will be initialized here)
+    // Initialize gameGrid as a droppable target
+    $(canvas).droppable({
+        accept: '.block', // Only accept elements with class 'block'
+        drop: function(event, ui) {
+            // ui.draggable is the jQuery object of the draggable element
+            const droppedBlockEl = ui.draggable[0]; // Get the original DOM element
+            
+            // Reconstruct ghostBlock properties from the dropped element's data attributes
+            const shape = JSON.parse(droppedBlockEl.dataset.shape);
+            const color = droppedBlockEl.dataset.color;
+            
+            // Calculate drop position on the grid
+            const canvasOffset = $(canvas).offset();
+            const dropX = event.clientX - canvasOffset.left;
+            const dropY = event.clientY - canvasOffset.top;
 
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+            const gridX = Math.floor(dropX / CELL_SIZE);
+            const gridY = Math.floor(dropY / CELL_SIZE);
 
-        const gridX = Math.floor(x / CELL_SIZE);
-        const gridY = Math.floor(y / CELL_SIZE);
+            const finalGhostBlock = { shape, color, x: gridX, y: gridY };
 
-        const shape = JSON.parse(draggedBlock.dataset.shape);
-        const color = draggedBlock.dataset.color;
-
-        ghostBlock = { shape, color, x: gridX, y: gridY };
-        draw(); // Redraw to show the ghost
-    });
-
-    canvas.addEventListener('drop', (e) => {
-        e.preventDefault();
-        // Mouse drop logic
-        if (!draggedBlock || !ghostBlock || isGameOver) return;
-
-        if (isValidPlacement(ghostBlock)) {
-            placeBlock(ghostBlock);
-            draggedBlock.remove();
-            if (blockContainer.children.length === 0) {
-                generateAvailableBlocks();
+            if (isValidPlacement(finalGhostBlock)) {
+                placeBlock(finalGhostBlock);
+                droppedBlockEl.remove(); // Remove the original block from blockContainer
+                if (blockContainer.children.length === 0) {
+                    generateAvailableBlocks();
+                }
+                clearLines();
+                checkGameOver();
+            } else {
+                displayMessage('Invalid placement!', 'red', 1000);
             }
-            clearLines();
-            checkGameOver();
-        }
-        ghostBlock = null;
-        if (draggedBlock) { // Ensure draggedBlock is not null before accessing style
-            draggedBlock.style.opacity = '1';
-        }
-        draggedBlock = null;
-        draw();
-    });
-
-    canvas.addEventListener('touchmove', (e) => {
-        e.preventDefault(); // Prevent scrolling
-        if (!isDragging || !draggedBlock || isGameOver) return;
-
-        const coords = getEventCoords(e);
-        const gridX = Math.floor(coords.x / CELL_SIZE);
-        const gridY = Math.floor(coords.y / CELL_SIZE);
-
-        const shape = JSON.parse(draggedBlock.dataset.shape);
-        const color = draggedBlock.dataset.color;
-
-        ghostBlock = { shape, color, x: gridX, y: gridY };
-        draw();
-    });
-
-    canvas.addEventListener('touchend', (e) => {
-        if (!isDragging || !draggedBlock || !ghostBlock || isGameOver) {
-            // Reset opacity if a drag was initiated but not successfully dropped
-            if (draggedBlock) {
-                draggedBlock.style.opacity = '1';
-            }
-            isDragging = false;
+            // Reset ghostBlock and draggedBlock state regardless of placement validity
+            ghostBlock = null;
             draggedBlock = null;
+            draw();
+        },
+        over: function(event, ui) {
+            // When draggable is hovered over droppable, update ghostBlock
+            const helperOffset = ui.offset;
+            const canvasOffset = $(canvas).offset();
+
+            const x = helperOffset.left + (ui.helper.width() / 2) - canvasOffset.left;
+            const y = helperOffset.top + (ui.helper.height() / 2) - canvasOffset.top;
+            
+            const gridX = Math.floor(x / CELL_SIZE);
+            const gridY = Math.floor(y / CELL_SIZE);
+
+            const shape = JSON.parse(ui.draggable[0].dataset.shape);
+            const color = ui.draggable[0].dataset.color;
+
+            ghostBlock = { shape, color, x: gridX, y: gridY };
+            draw();
+        },
+        out: function(event, ui) {
+            // When draggable leaves droppable, clear ghostBlock
             ghostBlock = null;
             draw();
-            return;
         }
-
-        if (isValidPlacement(ghostBlock)) {
-            placeBlock(ghostBlock);
-            // Ensure draggedBlock is still in the DOM before trying to remove it
-            if (draggedBlock && draggedBlock.parentNode) {
-                draggedBlock.remove();
-            }
-            if (blockContainer.children.length === 0) {
-                generateAvailableBlocks();
-            }
-            clearLines();
-            checkGameOver();
-        } else {
-            // If placement is invalid, give feedback (e.g., shake, message)
-            displayMessage('Invalid placement!', 'red', 1000);
-        }
-        
-        if (draggedBlock) { // Reset opacity of the original block
-            draggedBlock.style.opacity = '1';
-        }
-        isDragging = false;
-        draggedBlock = null;
-        ghostBlock = null;
-        draw();
     });
     
     
     // --- Game Logic ---
     function isValidPlacement(block, checkGrid = grid) {
         const { shape, x, y } = block;
+        // console.log(`  isValidPlacement called for block at (${x},${y}) with shape:`, shape); // Uncomment if too verbose
         for (let r = 0; r < shape.length; r++) {
             for (let c = 0; c < shape[r].length; c++) {
                 if (shape[r][c]) {
                     const gridR = y + r;
                     const gridC = x + c;
-                    if (gridR < 0 || gridR >= GRID_SIZE || gridC < 0 || gridC >= GRID_SIZE || checkGrid[gridR][gridC]) {
+                    if (gridR < 0 || gridR >= GRID_SIZE || gridC < 0 || gridC >= GRID_SIZE) {
+                        // console.log(`    Invalid: Out of bounds at (${gridC},${gridR}) for block starting at (${x},${y})`);
+                        return false;
+                    }
+                    if (checkGrid[gridR][gridC]) {
+                        // console.log(`    Invalid: Overlap at (${gridC},${gridR}) for block starting at (${x},${y})`);
                         return false;
                     }
                 }
             }
         }
+        // console.log(`  Valid placement for block starting at (${x},${y})`);
         return true;
     }
 
@@ -412,39 +387,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function checkGameOver() {
-        console.log("checkGameOver() called.");
+        console.log("--- checkGameOver() called ---");
         let availableBlocks = Array.from(blockContainer.children);
         console.log(`Available blocks in container: ${availableBlocks.length}`);
 
         // Helper function to check if any block can be placed
         const canAnyBlockBePlaced = (blocksToCheck) => {
+            console.log("  canAnyBlockBePlaced() called.");
+            if (blocksToCheck.length === 0) {
+                console.log("    No blocks to check. Returning false.");
+                return false;
+            }
             for (const blockEl of blocksToCheck) {
                 const shape = JSON.parse(blockEl.dataset.shape);
-                const color = blockEl.dataset.color; // color is not used in isValidPlacement, but keeping it for consistency
+                const color = blockEl.dataset.color; 
+                console.log(`    Testing block with shape:`, shape);
                 for (let r = 0; r < GRID_SIZE; r++) {
                     for (let c = 0; c < GRID_SIZE; c++) {
                         const tempBlock = { shape, color, x: c, y: r };
                         if (isValidPlacement(tempBlock)) {
+                            console.log(`      Block can be placed at (${c}, ${r}). Returning true.`);
                             return true;
                         }
                     }
                 }
             }
+            console.log("  No block can be placed anywhere. Returning false.");
             return false;
         };
 
         let anyBlockCanBePlacedNow = canAnyBlockBePlaced(availableBlocks);
 
         if (availableBlocks.length === 0) {
-            // All blocks have been placed, generate new ones unconditionally.
             console.log("All blocks placed. Generating new ones.");
             generateAvailableBlocks();
-            availableBlocks = Array.from(blockContainer.children); // Get newly generated blocks
-            anyBlockCanBePlacedNow = canAnyBlockBePlaced(availableBlocks); // Re-check with new blocks
+            availableBlocks = Array.from(blockContainer.children); 
+            anyBlockCanBePlacedNow = canAnyBlockBePlaced(availableBlocks); 
         }
 
         if (!anyBlockCanBePlacedNow) {
-            // No blocks (either current or newly generated) can be placed. Game Over.
             console.log("No valid placements found for any available block. GAME OVER.");
             isGameOver = true;
             if (score > highScore) {
@@ -453,7 +434,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateHighScoreDisplay();
             }
         } else {
-            // At least one block can be placed, game continues.
             console.log("Valid placements still possible. Game continues.");
             isGameOver = false;
         }
