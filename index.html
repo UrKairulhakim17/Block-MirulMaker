@@ -291,8 +291,23 @@ h1 {
 
     let draggedBlock = null;
     let ghostBlock = null;
+    let draggedBlockInfo = null; // Will hold { shape, color, target }
     let isDragging = false; // Added back for native touch events
     let currentMessage = null; // {text: "msg", color: "col", startTime: Date.now()}
+
+    // --- Utilities ---
+    function throttle(func, limit) {
+        let inThrottle;
+        return function() {
+            const args = arguments;
+            const context = this;
+            if (!inThrottle) {
+                func.apply(context, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        }
+    }
 
     // --- Theme Switching ---
     themeSwitcher.addEventListener('click', () => {
@@ -423,6 +438,27 @@ h1 {
     // --- Interact.js Drag and Drop Logic ---
 
     function setupInteract() {
+        // --- Throttled Ghost Block Update ---
+        const handleDragMove = (event) => {
+            if (isGameOver || !draggedBlockInfo) return;
+            
+            const canvasRect = canvas.getBoundingClientRect();
+            const x = event.dragEvent.client.x - canvasRect.left;
+            const y = event.dragEvent.client.y - canvasRect.top;
+
+            const gridX = Math.floor(x / CELL_SIZE);
+            const gridY = Math.floor(y / CELL_SIZE);
+
+            // Reuse the ghostBlock object instead of creating a new one
+            if (!ghostBlock) ghostBlock = {};
+            ghostBlock.shape = draggedBlockInfo.shape;
+            ghostBlock.color = draggedBlockInfo.color;
+            ghostBlock.x = gridX;
+            ghostBlock.y = gridY;
+            // Do NOT call draw() here. The rAF loop will handle it.
+        }
+        const throttledDragMove = throttle(handleDragMove, 50); // Limit to 20fps
+
         interact('.block').draggable({
             inertia: true,
             autoScroll: true,
@@ -430,6 +466,12 @@ h1 {
                 start (event) {
                     if (isGameOver) return;
                     const target = event.target;
+                    // Pre-parse and cache block info to avoid doing it on every move
+                    draggedBlockInfo = {
+                        shape: JSON.parse(target.dataset.shape),
+                        color: target.dataset.color,
+                        target: target
+                    };
                     // Keep the dragged block on top
                     target.style.zIndex = 1000;
                 },
@@ -449,54 +491,36 @@ h1 {
                 },
                 end (event) {
                     if (isGameOver) return;
-                    const target = event.target;
-                    // Reset z-index
-                    target.style.zIndex = '';
                     // Animate back to original position if not dropped
                     if (!event.relatedTarget) { // relatedTarget is the dropzone
-                        target.style.transition = 'transform 0.5s ease-in-out';
-                        target.style.transform = 'translate(0px, 0px)';
-                        target.setAttribute('data-x', 0);
-                        target.setAttribute('data-y', 0);
+                        draggedBlockInfo.target.style.transition = 'transform 0.5s ease-in-out';
+                        draggedBlockInfo.target.style.transform = 'translate(0px, 0px)';
+                        draggedBlockInfo.target.setAttribute('data-x', 0);
+                        draggedBlockInfo.target.setAttribute('data-y', 0);
                         setTimeout(() => {
-                            target.style.transition = ''; // Remove transition after animation
+                            draggedBlockInfo.target.style.transition = ''; // Remove transition after animation
                         }, 500);
                     }
+                    // Clean up state
+                    draggedBlockInfo.target.style.zIndex = '';
                     ghostBlock = null;
-                    draw();
+                    draggedBlockInfo = null;
+                    // Do NOT call draw() here.
                 }
             }
         });
 
         interact('#gameGrid').dropzone({
             accept: '.block',
-            ondragenter: function (event) {
-                if (isGameOver) return;
-                const draggableElement = event.relatedTarget;
-                const shape = JSON.parse(draggableElement.dataset.shape);
-                const color = draggableElement.dataset.color;
-                
-                const canvasRect = canvas.getBoundingClientRect();
-                const x = event.dragEvent.client.x - canvasRect.left;
-                const y = event.dragEvent.client.y - canvasRect.top;
-
-                const gridX = Math.floor(x / CELL_SIZE);
-                const gridY = Math.floor(y / CELL_SIZE);
-
-                ghostBlock = { shape, color, x: gridX, y: gridY };
-                draw();
-            },
+            ondragenter: throttledDragMove,
             ondragleave: function (event) {
                 if (isGameOver) return;
                 ghostBlock = null;
-                draw();
+                // Do NOT call draw() here.
             },
             ondrop: function (event) {
-                if (isGameOver) return;
-                const droppedBlockEl = event.relatedTarget;
-                const shape = JSON.parse(droppedBlockEl.dataset.shape);
-                const color = droppedBlockEl.dataset.color;
-
+                if (isGameOver || !draggedBlockInfo) return;
+                
                 const canvasRect = canvas.getBoundingClientRect();
                 const dropX = event.dragEvent.client.x - canvasRect.left;
                 const dropY = event.dragEvent.client.y - canvasRect.top;
@@ -504,11 +528,17 @@ h1 {
                 const gridX = Math.floor(dropX / CELL_SIZE);
                 const gridY = Math.floor(dropY / CELL_SIZE);
 
-                const finalGhostBlock = { shape, color, x: gridX, y: gridY };
+                // Use the cached info from draggedBlockInfo
+                const finalGhostBlock = { 
+                    shape: draggedBlockInfo.shape, 
+                    color: draggedBlockInfo.color, 
+                    x: gridX, 
+                    y: gridY 
+                };
 
                 if (isValidPlacement(finalGhostBlock)) {
                     placeBlock(finalGhostBlock);
-                    droppedBlockEl.remove();
+                    draggedBlockInfo.target.remove(); // Use the cached target
                     if (blockContainer.children.length === 0) {
                         generateAvailableBlocks();
                     }
@@ -517,33 +547,17 @@ h1 {
                 } else {
                     displayMessage('Invalid placement!', 'red', 1000);
                     // Snap back animation
-                    droppedBlockEl.style.transition = 'transform 0.5s ease-in-out';
-                    droppedBlockEl.style.transform = 'translate(0px, 0px)';
-                    droppedBlockEl.setAttribute('data-x', 0);
-                    droppedBlockEl.setAttribute('data-y', 0);
+                    draggedBlockInfo.target.style.transition = 'transform 0.5s ease-in-out';
+                    draggedBlockInfo.target.style.transform = 'translate(0px, 0px)';
+                    draggedBlockInfo.target.setAttribute('data-x', 0);
+                    draggedBlockInfo.target.setAttribute('data-y', 0);
                     setTimeout(() => {
-                        droppedBlockEl.style.transition = '';
+                        draggedBlockInfo.target.style.transition = '';
                     }, 500);
                 }
-                ghostBlock = null;
-                draw();
+                // Do NOT call draw() here. State is already clean.
             },
-            ondropmove: function (event) {
-                if (isGameOver) return;
-                 const draggableElement = event.relatedTarget;
-                const shape = JSON.parse(draggableElement.dataset.shape);
-                const color = draggableElement.dataset.color;
-                
-                const canvasRect = canvas.getBoundingClientRect();
-                const x = event.dragEvent.client.x - canvasRect.left;
-                const y = event.dragEvent.client.y - canvasRect.top;
-
-                const gridX = Math.floor(x / CELL_SIZE);
-                const gridY = Math.floor(y / CELL_SIZE);
-
-                ghostBlock = { shape, color, x: gridX, y: gridY };
-                draw();
-            }
+            ondropmove: throttledDragMove
         });
     }
     
