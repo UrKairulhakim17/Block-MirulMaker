@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Block MirulMaker</title>
+    <title>Block Puzzle Mirul Maker</title>
     <style>
         :root {
     --grid-size: 8;
@@ -100,10 +100,19 @@ h1 {
     white-space: nowrap; /* Keep score on one line */
     padding: 10px 20px; /* Add padding */
     border-radius: 15px; /* Rounded corners */
-    background-color: var(--grid-bg); /* Use grid background for consistency */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    /* Glassmorphism styles */
+    background-color: rgba(255, 255, 255, 0.15); /* Semi-transparent background */
+    backdrop-filter: blur(10px); /* Frosted glass effect */
+    border: 1px solid rgba(255, 255,255, 0.2); /* Light, semi-transparent border */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08); /* Enhanced shadow */
     transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
     text-align: center; /* Center text for better look with progress bar */
+}
+
+/* Dark theme specific glassmorphism adjustments */
+.dark-theme .score-container, .dark-theme .high-score-container {
+    background-color: rgba(0, 0, 0, 0.2); /* Darker semi-transparent background */
+    border: 1px solid rgba(255, 255,255, 0.1); /* Subtler border in dark mode */
 }
 
 .progress-bar-container {
@@ -213,7 +222,7 @@ h1 {
 </head>
 <body>
     <div class="header">
-        <h1>Block Puzzle</h1>
+        <h1>Block Puzzle Mirul Maker</h1>
         <button id="theme-switcher">Toggle Theme</button>
     </div>
     <div class="game-container">
