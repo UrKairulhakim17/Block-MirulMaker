@@ -276,6 +276,15 @@ h1 {
     const powerUpSound = document.getElementById('power-up-sound');
     const volumeSlider = document.getElementById('volume-slider');
 
+    function unlockAudio() {
+        const sounds = [backgroundMusic, lineClearSound, powerUpSound, gameOverMusic];
+        sounds.forEach(sound => {
+            sound.play();
+            sound.pause();
+            sound.currentTime = 0;
+        });
+    }
+
     function setVolume(volume) {
         backgroundMusic.volume = volume;
         lineClearSound.volume = volume;
@@ -956,6 +965,7 @@ h1 {
 
         setVolume(volumeSlider.value);
         body.addEventListener('click', () => {
+            unlockAudio();
             backgroundMusic.play().catch(error => {
                 console.error("Background music couldn't play:", error);
             });
