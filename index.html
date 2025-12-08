@@ -97,6 +97,70 @@ h1 {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+#pause-button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 20px;
+    background-color: var(--button-bg);
+    color: var(--button-text);
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+    font-size: 1em;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-left: 10px;
+}
+
+#pause-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+}
+
+#pause-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+#pause-menu.active {
+    display: flex;
+}
+
+.pause-menu-content {
+    background-color: var(--bg-color);
+    padding: 40px;
+    border-radius: 15px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    text-align: center;
+}
+
+.pause-menu-content h2 {
+    margin-bottom: 20px;
+}
+
+.pause-menu-content button {
+    padding: 15px 30px;
+    margin: 10px;
+    border: none;
+    border-radius: 10px;
+    background-color: var(--button-bg);
+    color: var(--button-text);
+    cursor: pointer;
+    font-size: 1.2em;
+    transition: background-color 0.3s ease;
+}
+
+.pause-menu-content button:hover {
+    background-color: #45a049;
+}
+
 .game-container {
     display: flex; /* Use flexbox for layout */
     flex-direction: column; /* Default to column for mobile */
@@ -239,6 +303,7 @@ h1 {
             <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="0.5">
         </div>
         <button id="theme-switcher">Toggle Theme</button>
+        <button id="pause-button">Pause</button>
     </div>
     <div class="game-container">
         <div class="score-container">
@@ -258,6 +323,15 @@ h1 {
         <audio id="background-music" loop src="music/game-music-loop-6-144641.mp3"></audio>
         <audio id="line-clear-sound" src="music/power-up-sparkle.mp3"></audio>
         <audio id="power-up-sound" src="music/power-up-sparkle.mp3"></audio>
+        <audio id="explosion-sound" src="music/power-up-sparkle.mp3"></audio>
+    </div>
+    <div id="pause-menu">
+        <div class="pause-menu-content">
+            <h2>Game Paused</h2>
+            <button id="resume-button">Resume</button>
+            <button id="restart-button">Restart</button>
+            <button id="mute-button">Mute</button>
+        </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
     <script>
@@ -270,30 +344,71 @@ h1 {
     const blockContainer = document.getElementById('block-container');
     const themeSwitcher = document.getElementById('theme-switcher');
     const body = document.body;
-    const gameOverMusic = document.getElementById('game-over-music');
-    const backgroundMusic = document.getElementById('background-music');
-    const lineClearSound = document.getElementById('line-clear-sound');
-    const powerUpSound = document.getElementById('power-up-sound');
+    const pauseButton = document.getElementById('pause-button');
+    const pauseMenu = document.getElementById('pause-menu');
+    const resumeButton = document.getElementById('resume-button');
+    const restartButton = document.getElementById('restart-button');
+    const muteButton = document.getElementById('mute-button');
+
+    class AudioManager {
+        constructor() {
+            this.gameOverMusic = document.getElementById('game-over-music');
+            this.backgroundMusic = document.getElementById('background-music');
+            this.lineClearSound = document.getElementById('line-clear-sound');
+            this.powerUpSound = document.getElementById('power-up-sound');
+            this.explosionSound = document.getElementById('explosion-sound');
+            this.isMuted = false;
+            this.volume = 0.5;
+
+            this.sounds = [this.gameOverMusic, this.backgroundMusic, this.lineClearSound, this.powerUpSound, this.explosionSound];
+        }
+
+        unlockAudio() {
+            this.sounds.forEach(sound => {
+                sound.play();
+                sound.pause();
+                sound.currentTime = 0;
+            });
+        }
+
+        setVolume(volume) {
+            this.volume = volume;
+            if (!this.isMuted) {
+                this.sounds.forEach(sound => sound.volume = volume);
+            }
+        }
+
+        toggleMute() {
+            this.isMuted = !this.isMuted;
+            this.sounds.forEach(sound => sound.volume = this.isMuted ? 0 : this.volume);
+            muteButton.textContent = this.isMuted ? 'Unmute' : 'Mute';
+        }
+
+        play(sound) {
+            if (!this.isMuted) {
+                sound.currentTime = 0;
+                sound.play();
+            }
+        }
+
+        playBgMusic() {
+            if (!this.isMuted) {
+                this.backgroundMusic.play().catch(error => {
+                    console.error("Background music couldn't play:", error);
+                });
+            }
+        }
+
+        pauseBgMusic() {
+            this.backgroundMusic.pause();
+        }
+    }
+
+    const audioManager = new AudioManager();
     const volumeSlider = document.getElementById('volume-slider');
 
-    function unlockAudio() {
-        const sounds = [backgroundMusic, lineClearSound, powerUpSound, gameOverMusic];
-        sounds.forEach(sound => {
-            sound.play();
-            sound.pause();
-            sound.currentTime = 0;
-        });
-    }
-
-    function setVolume(volume) {
-        backgroundMusic.volume = volume;
-        lineClearSound.volume = volume;
-        powerUpSound.volume = volume;
-        gameOverMusic.volume = volume;
-    }
-
     volumeSlider.addEventListener('input', (e) => {
-        setVolume(e.target.value);
+        audioManager.setVolume(e.target.value);
     });
 
     const GRID_SIZE = 8;
@@ -308,6 +423,7 @@ h1 {
     let highScore = 0; // New high score variable
     let grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
     let isGameOver = false;
+    let isPaused = false;
     let poppingCells = []; // Stores cells currently in pop animation
 
     // Added more colors for new blocks
@@ -331,6 +447,7 @@ h1 {
         { name: '1x3_new', shape: [[1], [1], [1]], color: COLORS[8] }, // New 3x1 block (vertical)
         { name: '1x4_new', shape: [[1], [1], [1], [1]], color: COLORS[9] }, // New 4x1 block (vertical)
         { name: '1x5_new', shape: [[1], [1], [1], [1], [1]], color: COLORS[10] }, // New 5x1 block (vertical)
+        { name: 'bomb', shape: [[1]], color: '#000000', isBomb: true }, // Bomb block
     ];
 
     let draggedBlock = null;
@@ -338,6 +455,42 @@ h1 {
     let draggedBlockInfo = null; // Will hold { shape, color, target }
     let isDragging = false; // Added back for native touch events
     let currentMessage = null; // {text: "msg", color: "col", startTime: Date.now()}
+
+    // --- Pause Handling ---
+    function pauseGame() {
+        if (isGameOver) return;
+        isPaused = true;
+        pauseMenu.classList.add('active');
+        audioManager.pauseBgMusic();
+        interact('.block').draggable(false); // Disable dragging
+    }
+
+    function resumeGame() {
+        isPaused = false;
+        pauseMenu.classList.remove('active');
+        audioManager.playBgMusic();
+        interact('.block').draggable(true); // Enable dragging
+        requestAnimationFrame(draw);
+    }
+
+    function restartGame() {
+        score = 0;
+        grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
+        isGameOver = false;
+        currentMessage = null;
+        generateAvailableBlocks();
+        updateScore();
+        updateProgressBar();
+        if (isPaused) {
+            resumeGame();
+        }
+    }
+
+    pauseButton.addEventListener('click', pauseGame);
+    resumeButton.addEventListener('click', resumeGame);
+    restartButton.addEventListener('click', restartGame);
+    muteButton.addEventListener('click', () => audioManager.toggleMute());
+
 
     // --- Utilities ---
     function throttle(func, limit) {
@@ -435,6 +588,7 @@ h1 {
     }
 
     window.addEventListener('resize', () => {
+        if (isPaused) return;
         adjustCanvasAndCellSizes();
         draw();
     });
@@ -456,21 +610,30 @@ h1 {
         blockElement.style.gridTemplateRows = `repeat(${blockInfo.shape.length}, ${PREVIEW_CELL_SIZE}px)`;
         blockElement.style.gridTemplateColumns = `repeat(${blockInfo.shape[0].length}, ${PREVIEW_CELL_SIZE}px)`;
         
-        // Interact.js will handle the draggable property, so setting blockElement.draggable = true is not needed.
-
-        blockInfo.shape.forEach(row => {
-            row.forEach(cell => {
-                const cellDiv = document.createElement('div');
-                if (cell) {
-                    cellDiv.classList.add('block-cell');
-                    cellDiv.style.backgroundColor = blockInfo.color;
-                }
-                blockElement.appendChild(cellDiv);
+        if (blockInfo.isBomb) {
+            const img = document.createElement('img');
+            img.src = 'image/bomb.svg';
+            img.style.width = `${PREVIEW_CELL_SIZE}px`;
+            img.style.height = `${PREVIEW_CELL_SIZE}px`;
+            blockElement.appendChild(img);
+        } else {
+            blockInfo.shape.forEach(row => {
+                row.forEach(cell => {
+                    const cellDiv = document.createElement('div');
+                    if (cell) {
+                        cellDiv.classList.add('block-cell');
+                        cellDiv.style.backgroundColor = blockInfo.color;
+                    }
+                    blockElement.appendChild(cellDiv);
+                });
             });
-        });
+        }
 
         blockElement.dataset.shape = JSON.stringify(blockInfo.shape);
         blockElement.dataset.color = blockInfo.color;
+        if(blockInfo.isBomb) {
+            blockElement.dataset.isBomb = true;
+        }
 
         // Set initial position for Interact.js to use for snapping back
         blockElement.dataset.x = 0;
@@ -484,7 +647,7 @@ h1 {
     function setupInteract() {
         // --- Throttled Ghost Block Update ---
         const handleDragMove = (event) => {
-            if (isGameOver || !draggedBlockInfo) return;
+            if (isGameOver || isPaused || !draggedBlockInfo) return;
             
             const canvasRect = canvas.getBoundingClientRect();
             const x = event.dragEvent.client.x - canvasRect.left;
@@ -499,6 +662,7 @@ h1 {
             ghostBlock.color = draggedBlockInfo.color;
             ghostBlock.x = gridX;
             ghostBlock.y = gridY;
+            ghostBlock.isBomb = draggedBlockInfo.isBomb;
             // Do NOT call draw() here. The rAF loop will handle it.
         }
         const throttledDragMove = throttle(handleDragMove, 50); // Limit to 20fps
@@ -508,19 +672,20 @@ h1 {
             autoScroll: true,
             listeners: {
                 start (event) {
-                    if (isGameOver) return;
+                    if (isGameOver || isPaused) return;
                     const target = event.target;
                     // Pre-parse and cache block info to avoid doing it on every move
                     draggedBlockInfo = {
                         shape: JSON.parse(target.dataset.shape),
                         color: target.dataset.color,
-                        target: target
+                        target: target,
+                        isBomb: target.dataset.isBomb === 'true'
                     };
                     // Keep the dragged block on top
                     target.style.zIndex = 1000;
                 },
                 move (event) {
-                    if (isGameOver) return;
+                    if (isGameOver || isPaused) return;
                     const target = event.target;
                     // keep the dragged position in the data-x/data-y attributes
                     const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
@@ -534,7 +699,7 @@ h1 {
                     target.setAttribute('data-y', y);
                 },
                 end (event) {
-                    if (isGameOver) return;
+                    if (isGameOver || isPaused) return;
                     // Animate back to original position if not dropped
                     if (!event.relatedTarget) { // relatedTarget is the dropzone
                         draggedBlockInfo.target.style.transition = 'transform 0.5s ease-in-out';
@@ -558,12 +723,12 @@ h1 {
             accept: '.block',
             ondragenter: throttledDragMove,
             ondragleave: function (event) {
-                if (isGameOver) return;
+                if (isGameOver || isPaused) return;
                 ghostBlock = null;
                 // Do NOT call draw() here.
             },
             ondrop: function (event) {
-                if (isGameOver || !draggedBlockInfo) return;
+                if (isGameOver || isPaused || !draggedBlockInfo) return;
                 
                 const canvasRect = canvas.getBoundingClientRect();
                 const dropX = event.dragEvent.client.x - canvasRect.left;
@@ -577,7 +742,8 @@ h1 {
                     shape: draggedBlockInfo.shape, 
                     color: draggedBlockInfo.color, 
                     x: gridX, 
-                    y: gridY 
+                    y: gridY,
+                    isBomb: draggedBlockInfo.isBomb
                 };
 
                 if (isValidPlacement(finalGhostBlock)) {
@@ -619,7 +785,7 @@ h1 {
                         // console.log(`    Invalid: Out of bounds at (${gridC},${gridR}) for block starting at (${x},${y})`);
                         return false;
                     }
-                    if (checkGrid[gridR][gridC]) {
+                    if (checkGrid[gridR][gridC] && !block.isBomb) {
                         // console.log(`    Invalid: Overlap at (${gridC},${gridR}) for block starting at (${x},${y})`);
                         return false;
                     }
@@ -631,21 +797,37 @@ h1 {
     }
 
     function placeBlock(block) {
-        const { shape, color, x, y } = block;
-        let blocksPlaced = 0;
-        shape.forEach((row, r) => {
-            row.forEach((cell, c) => {
-                if (cell) {
-                    grid[y + r][x + c] = color;
-                    blocksPlaced++;
+        const { shape, color, x, y, isBomb } = block;
+        
+        if (isBomb) {
+            audioManager.play(audioManager.explosionSound);
+            for (let r = -1; r <= 1; r++) {
+                for (let c = -1; c <= 1; c++) {
+                    const gridR = y + r;
+                    const gridC = x + c;
+                    if (gridR >= 0 && gridR < GRID_SIZE && gridC >= 0 && gridC < GRID_SIZE) {
+                        grid[gridR][gridC] = null;
+                    }
                 }
+            }
+            score += 100; // Add 100 points for using a bomb
+        } else {
+            let blocksPlaced = 0;
+            shape.forEach((row, r) => {
+                row.forEach((cell, c) => {
+                    if (cell) {
+                        grid[y + r][x + c] = color;
+                        blocksPlaced++;
+                    }
+                });
             });
-        });
-        score += blocksPlaced; // Each placed block cell contributes to score
+            score += blocksPlaced; // Each placed block cell contributes to score
+        }
         updateScore();
     }
     
     function clearLines() {
+        if (isPaused) return;
         let cellsClearedCount = 0;
         let cellsToClear = new Set(); // To store unique "r,c" coordinates
         let rowsCleared = 0;
@@ -680,7 +862,7 @@ h1 {
         
         // Mark cells for popping animation
         if (cellsToClear.size > 0) {
-            lineClearSound.play();
+            audioManager.play(audioManager.lineClearSound);
             const animationStartTime = Date.now();
             cellsToClear.forEach(coords => {
                 const [r, c] = coords.split(',').map(Number);
@@ -688,6 +870,7 @@ h1 {
             });
 
             setTimeout(() => {
+                if (isPaused) return;
                 cellsToClear.forEach(coords => {
                     const [r, c] = coords.split(',').map(Number);
                     grid[r][c] = null;
@@ -699,7 +882,7 @@ h1 {
                 let scoreToAdd = cellsClearedCount * 20;
                 if (combo >= 2) {
                     scoreToAdd *= Math.pow(2, combo - 1);
-                    powerUpSound.play();
+                    audioManager.play(audioManager.powerUpSound);
                 }
                 score += scoreToAdd;
                 
@@ -724,6 +907,7 @@ h1 {
 
 
     function checkGameOver() {
+        if (isPaused) return;
         console.log("--- checkGameOver() called ---");
         let availableBlocks = Array.from(blockContainer.children);
         console.log(`Available blocks in container: ${availableBlocks.length}`);
@@ -765,7 +949,7 @@ h1 {
         if (!anyBlockCanBePlacedNow) {
             console.log("No valid placements found for any available block. GAME OVER.");
             isGameOver = true;
-            gameOverMusic.play();
+            audioManager.play(audioManager.gameOverMusic);
             if (score > highScore) {
                 highScore = score;
                 localStorage.setItem('blockPuzzleHighScore', highScore);
@@ -834,7 +1018,10 @@ h1 {
                 currentMessage = null; // Clear message after duration
             }
         }
-        requestAnimationFrame(draw); // Keep the main draw loop running
+
+        if (!isPaused) {
+            requestAnimationFrame(draw); // Keep the main draw loop running
+        }
     }
 
     function drawBackgroundGrid() {
@@ -934,20 +1121,28 @@ h1 {
     }
 
     function drawGhostBlock() {
-        const { shape, color, x, y } = ghostBlock;
+        const { shape, color, x, y, isBomb } = ghostBlock;
         const isValid = isValidPlacement(ghostBlock);
         // Use the block's color, or a specific invalid color
         const ghostColor = isValid ? color : getCssVariable('--invalid-placement-color');
 
-        shape.forEach((row, r) => {
-            row.forEach((cell, c) => {
-                if (cell) {
-                    // Draw ghost cells with transparency and the determined color
-                    drawBlockCell((x + c) * CELL_SIZE, (y + r) * CELL_SIZE, ghostColor, 0.5);
-                }
+        if (isBomb) {
+            ctx.globalAlpha = 0.5; // Half transparency for ghost bomb
+            ctx.drawImage(bombImage, x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            ctx.globalAlpha = 1.0;
+        } else {
+            shape.forEach((row, r) => {
+                row.forEach((cell, c) => {
+                    if (cell) {
+                        // Draw ghost cells with transparency and the determined color
+                        drawBlockCell((x + c) * CELL_SIZE, (y + r) * CELL_SIZE, ghostColor, 0.5);
+                    }
+                });
             });
-        });
+        }
     }
+
+    let bombImage = new Image(); // Declare bombImage globally or accessible to init and drawGhostBlock
 
     // --- Init ---
     function init() {
@@ -963,13 +1158,14 @@ h1 {
         updateHighScoreDisplay();
         updateProgressBar();
 
-        setVolume(volumeSlider.value);
+        audioManager.setVolume(volumeSlider.value);
         body.addEventListener('click', () => {
-            unlockAudio();
-            backgroundMusic.play().catch(error => {
-                console.error("Background music couldn't play:", error);
-            });
+            audioManager.unlockAudio();
+            audioManager.playBgMusic();
         }, { once: true });
+
+        // Preload bomb image
+        bombImage.src = 'image/bomb.svg';
 
         draw();
         generateAvailableBlocks();
@@ -979,14 +1175,7 @@ h1 {
     // Restart game listener
     canvas.addEventListener('click', () => {
         if (isGameOver) {
-            score = 0;
-            grid = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
-            isGameOver = false;
-            currentMessage = null; // Clear any lingering messages
-            generateAvailableBlocks();
-            updateScore();
-            updateProgressBar();
-            // No need to call draw() here, requestAnimationFrame will pick it up
+            restartGame();
         }
     });
 
