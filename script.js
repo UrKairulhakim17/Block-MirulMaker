@@ -29,11 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
             this.backgroundMusic = document.getElementById('background-music');
             this.lineClearSound = document.getElementById('line-clear-sound');
             this.powerUpSound = document.getElementById('power-up-sound');
-            this.explosionSound = document.getElementById('explosion-sound');
+            // Explosion sound is not used for bomb blocks anymore so it can be removed
+            // this.explosionSound = document.getElementById('explosion-sound');
             this.isMuted = false;
             this.volume = 0.5;
 
-            this.sounds = [this.gameOverMusic, this.backgroundMusic, this.lineClearSound, this.powerUpSound, this.explosionSound];
+            this.sounds = [this.gameOverMusic, this.backgroundMusic, this.lineClearSound, this.powerUpSound];
         }
 
         unlockAudio() {
@@ -98,26 +99,35 @@ document.addEventListener('DOMContentLoaded', () => {
     let isPaused = false;
     let poppingCells = [];
 
-    const COLORS = ['#FF0D72', '#0DC2FF', '#0DFF72', '#F538FF', '#FF8E0D', '#FFE138', '#3877FF', '#9E22FF', '#FF00A0', '#00FFFF', '#FFD700', '#FF4500']; 
+    const COLORS = ['#FF0D72', '#0DC2FF', '#0DFF72', '#F538FF', '#FF8E0D', '#FFE138', '#3877FF', '#9E22FF', '#FF00A0', '#00FFFF', '#FFD700', '#FF4500', '#C500FF', '#FF005D', '#00FFD8']; 
     const SHAPES = [
-        { name: '1x1', shape: [[1]], color: COLORS[0] },
-        { name: '1x2', shape: [[1, 1]], color: COLORS[1] },
-        { name: '2x1', shape: [[1], [1]], color: COLORS[1] },
-        { name: '1x3', shape: [[1, 1, 1]], color: COLORS[2] },
-        { name: '3x1', shape: [[1], [1], [1]], color: COLORS[2] },
-        { name: '2x2', shape: [[1, 1], [1, 1]], color: COLORS[3] },
-        { name: 'S', shape: [[0, 1, 1], [1, 1, 0]], color: COLORS[4] },
-        { name: 'Z', shape: [[1, 1, 0], [0, 1, 1]], color: COLORS[4] },
-        { name: 'T', shape: [[1, 1, 1], [0, 1, 0]], color: COLORS[5] },
-        { name: 'L', shape: [[1, 0], [1, 0], [1, 1]], color: COLORS[6] },
-        { name: 'J', shape: [[0, 1], [0, 1], [1, 1]], color: COLORS[6] },
-        { name: '3x3', shape: [[1, 1, 1], [1, 1, 1], [1, 1, 1]], color: COLORS[7] },
-        { name: '3x1_new', shape: [[1, 1, 1]], color: COLORS[8] },
-        { name: '4x1_new', shape: [[1, 1, 1, 1]], color: COLORS[9] },
-        { name: '5x1_new', shape: [[1, 1, 1, 1, 1]], color: COLORS[10] },
-        { name: '1x3_new', shape: [[1], [1], [1]], color: COLORS[8] },
-        { name: '1x4_new', shape: [[1], [1], [1], [1]], color: COLORS[9] },
-        { name: '1x5_new', shape: [[1], [1], [1], [1], [1]], color: COLORS[10] },
+        // Level 0 (Classic)
+        { name: '1x1', shape: [[1]], color: COLORS[0], scoreValue: 1, minLevel: 0 },
+        { name: '1x2', shape: [[1, 1]], color: COLORS[1], scoreValue: 2, minLevel: 0 },
+        { name: '2x1', shape: [[1], [1]], color: COLORS[1], scoreValue: 2, minLevel: 0 },
+        { name: '1x3', shape: [[1, 1, 1]], color: COLORS[2], scoreValue: 3, minLevel: 0 },
+        { name: '3x1', shape: [[1], [1], [1]], color: COLORS[2], scoreValue: 3, minLevel: 0 },
+        { name: '2x2', shape: [[1, 1], [1, 1]], color: COLORS[3], scoreValue: 4, minLevel: 0 },
+        
+        // Level 1
+        { name: 'S', shape: [[0, 1, 1], [1, 1, 0]], color: COLORS[4], scoreValue: 4, minLevel: 1 },
+        { name: 'Z', shape: [[1, 1, 0], [0, 1, 1]], color: COLORS[4], scoreValue: 4, minLevel: 1 },
+        { name: 'T', shape: [[1, 1, 1], [0, 1, 0]], color: COLORS[5], scoreValue: 4, minLevel: 1 },
+        { name: 'L', shape: [[1, 0], [1, 0], [1, 1]], color: COLORS[6], scoreValue: 4, minLevel: 1 },
+        { name: 'J', shape: [[0, 1], [0, 1], [1, 1]], color: COLORS[6], scoreValue: 4, minLevel: 1 },
+
+        // Level 2
+        { name: '3x3', shape: [[1, 1, 1], [1, 1, 1], [1, 1, 1]], color: COLORS[7], scoreValue: 9, minLevel: 2 },
+        { name: '1x4', shape: [[1, 1, 1, 1]], color: COLORS[9], scoreValue: 4, minLevel: 2 },
+        { name: '4x1', shape: [[1], [1], [1], [1]], color: COLORS[9], scoreValue: 4, minLevel: 2 },
+
+        // Level 3 (Weird shapes)
+        { name: 'U-Shape', shape: [[1, 0, 1], [1, 1, 1]], color: COLORS[12], scoreValue: 15, minLevel: 3 },
+        { name: 'Plus-Sign', shape: [[0, 1, 0], [1, 1, 1], [0, 1, 0]], color: COLORS[13], scoreValue: 20, minLevel: 3 },
+
+        // Level 4 (Weirder shapes)
+        { name: 'Hollow-Square', shape: [[1, 1, 1, 1], [1, 0, 0, 1], [1, 1, 1, 1]], color: COLORS[14], scoreValue: 30, minLevel: 4 },
+        { name: 'Big-S', shape: [[0, 1, 1], [1, 1, 0], [0, 1, 1]], color: COLORS[4], scoreValue: 25, minLevel: 4 },
     ];
 
     let draggedBlock = null;
@@ -126,13 +136,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentMessage = null;
 
     let gameMode = null;
-    let currentLevel = 0;
+    let currentLevel = 0; // This will represent the difficulty level (0-4)
     const levels = [
-        { targetScore: 500 },
-        { targetScore: 1200 },
-        { targetScore: 2000 },
-        { targetScore: 3000 },
-        { targetScore: 5000 },
+        { targetScore: 250 },  // Level 1
+        { targetScore: 600 },  // Level 2
+        { targetScore: 1200 }, // Level 3
+        { targetScore: 2000 }, // Level 4
+        { targetScore: 3000 }, // Level 5
     ];
 
     // --- Menu Handling ---
@@ -161,8 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         audioManager.pauseBgMusic();
         
-        // Reset game state
-        isGameOver = true; // Set to true to stop any interaction
+        isGameOver = true;
         isPaused = false;
     }
 
@@ -210,9 +219,8 @@ document.addEventListener('DOMContentLoaded', () => {
         currentMessage = null;
         
         // In level mode, a restart should restart the current level, not go back to level 1
-        if (gameMode === 'level') {
-            updateLevelDisplay();
-        }
+        // The currentLevel is managed by game progression, not by restarting.
+        // If the user wants to restart the entire level progression, they should use "Back to Menu" and start a new level game.
 
         generateAvailableBlocks();
         updateScore();
@@ -261,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
             R = f >> 16,
             G = (f >> 8) & 0x00ff,
             B = f & 0x0000ff;
-        return "#" + (0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 0x100 + (Math.round((t - B) * p) + B)).toString(16).slice(1);
+        return "#" + (0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 100 + (Math.round((t - B) * p) + B)).toString(16).slice(1);
     }
 
     // --- Responsive Sizing ---
@@ -298,9 +306,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Block Generation & Display ---
     function generateAvailableBlocks() {
+        let availableShapes;
+
+        if (gameMode === 'level') {
+            availableShapes = SHAPES.filter(shape => shape.minLevel <= currentLevel);
+        } else {
+            // Classic mode uses all blocks with minLevel 0 or 1
+            availableShapes = SHAPES.filter(shape => shape.minLevel <= 1);
+        }
+
         blockContainer.innerHTML = '';
         for (let i = 0; i < 3; i++) {
-            const blockInfo = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+            const blockInfo = availableShapes[Math.floor(Math.random() * availableShapes.length)];
             const blockElement = createBlockElement(blockInfo);
             blockContainer.appendChild(blockElement);
         }
@@ -325,6 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         blockElement.dataset.shape = JSON.stringify(blockInfo.shape);
         blockElement.dataset.color = blockInfo.color;
+        blockElement.dataset.name = blockInfo.name; // Store name to look up full info later
         blockElement.dataset.x = 0;
         blockElement.dataset.y = 0;
         
@@ -348,7 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ghostBlock.color = draggedBlockInfo.color;
             ghostBlock.x = gridX;
             ghostBlock.y = gridY;
-        }, 16); // Reduced throttle time for more responsive ghost block
+        }, 16);
 
         interact('.block').draggable({
             inertia: true,
@@ -357,11 +375,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 start (event) {
                     if (isGameOver || isPaused) return;
                     const target = event.target;
-                    draggedBlockInfo = {
-                        shape: JSON.parse(target.dataset.shape),
-                        color: target.dataset.color,
-                        target: target
-                    };
+                    const blockName = target.dataset.name;
+                    const shapeInfo = SHAPES.find(s => s.name === blockName);
+
+                    if (shapeInfo) {
+                        draggedBlockInfo = {
+                            ...shapeInfo,
+                            target: target,
+                        };
+                    }
                     target.style.zIndex = 1000;
                 },
                 move (event) {
@@ -411,15 +433,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const gridX = Math.floor(dropX / CELL_SIZE);
                 const gridY = Math.floor(dropY / CELL_SIZE);
 
-                const finalGhostBlock = { 
-                    shape: draggedBlockInfo.shape, 
-                    color: draggedBlockInfo.color, 
-                    x: gridX, 
-                    y: gridY
-                };
+                const finalBlock = { ...draggedBlockInfo, x: gridX, y: gridY };
 
-                if (isValidPlacement(finalGhostBlock)) {
-                    placeBlock(finalGhostBlock);
+                if (isValidPlacement(finalBlock)) {
+                    placeBlock(finalBlock);
                     draggedBlockInfo.target.remove();
                     if (blockContainer.children.length === 0) {
                         generateAvailableBlocks();
@@ -465,21 +482,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function placeBlock(block) {
-        const { shape, color, x, y } = block;
+        const { shape, color, x, y, scoreValue } = block;
         
-        let blocksPlaced = 0;
         shape.forEach((row, r) => {
             row.forEach((cell, c) => {
                 if (cell) {
                     grid[y + r][x + c] = color;
-                    blocksPlaced++;
                 }
             });
         });
-        score += blocksPlaced;
+
+        score += scoreValue || shape.flat().reduce((a, b) => a + b, 0);
         updateScore();
     }
     
+    // Helper function to check if the entire grid is empty
+    function isGridEmpty() {
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                if (grid[r][c] !== null) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     function clearLines() {
         if (isPaused) return;
         let cellsToClear = new Set();
@@ -517,9 +545,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 poppingCells = [];
 
                 let combo = rowsCleared + colsCleared;
-                let scoreToAdd = cellsToClear.size * 20;
+                let scoreToAdd = cellsToClear.size * 10 * combo;
                 if (combo >= 2) {
-                    scoreToAdd *= Math.pow(2, combo - 1);
+                    scoreToAdd *= combo;
                     audioManager.play(audioManager.powerUpSound);
                 }
                 score += scoreToAdd;
@@ -529,6 +557,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (combo > 1) displayMessage(`Combo x${combo}! Amazing!`, 'green');
                 else if (combo === 1) displayMessage('Good Clear!', 'blue');
+
+                // Check if grid is empty for bonus score
+                if (isGridEmpty()) {
+                    const gridClearBonus = 500;
+                    score += gridClearBonus;
+                    displayMessage(`GRID CLEARED! +${gridClearBonus} Bonus!`, 'gold', 2500);
+                    audioManager.play(audioManager.powerUpSound); // Play a special sound for grid clear
+                    updateScore();
+                }
+
             }, POP_ANIMATION_DURATION);
         }
     }
@@ -540,13 +578,23 @@ document.addEventListener('DOMContentLoaded', () => {
     function checkGameOver() {
         if (isPaused) return;
         
+        let availableShapes;
+        if (gameMode === 'level') {
+            availableShapes = SHAPES.filter(shape => shape.minLevel <= currentLevel);
+        } else {
+            availableShapes = SHAPES.filter(shape => shape.minLevel <= 1);
+        }
+
         const canAnyBlockBePlaced = (blocksToCheck) => {
-            if (blocksToCheck.length === 0) return false;
+            if (blocksToCheck.length === 0) return true; // No blocks to place, not a game over condition.
             for (const blockEl of blocksToCheck) {
-                const shape = JSON.parse(blockEl.dataset.shape);
+                const blockName = blockEl.dataset.name;
+                const shapeInfo = availableShapes.find(s => s.name === blockName);
+                if (!shapeInfo) continue;
+
                 for (let r = 0; r < GRID_SIZE; r++) {
                     for (let c = 0; c < GRID_SIZE; c++) {
-                        const tempBlock = { shape, x: c, y: r };
+                        const tempBlock = { shape: shapeInfo.shape, x: c, y: r };
                         if (isValidPlacement(tempBlock)) return true;
                     }
                 }
@@ -571,7 +619,7 @@ document.addEventListener('DOMContentLoaded', () => {
         scoreEl.textContent = score;
 
         if (gameMode === 'classic') {
-            updateProgressBar(score, highScore > 0 ? highScore : 100);
+            updateProgressBar(score, highScore > 0 ? highScore : 250);
         } else if (gameMode === 'level') {
             if(currentLevel >= levels.length) return;
             const targetScore = levels[currentLevel].targetScore;
@@ -615,14 +663,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Drawing Functions ---
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawBackgroundGrid();
-        drawGridLines();
-        drawPlacedBlocks();
-        drawPoppingCells();
-        if (ghostBlock) drawGhostBlock();
-
         if (isGameOver) {
+            if(animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            // Draw final game over screen once
             ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
             ctx.fillRect(0, canvas.height / 2 - 40, canvas.width, 80);
             ctx.fillStyle = 'white';
@@ -631,7 +677,17 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 10);
             ctx.font = '16px Arial';
             ctx.fillText('Click to Restart', canvas.width / 2, canvas.height / 2 + 20);
-        } else if (currentMessage) {
+            return;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawBackgroundGrid();
+        drawGridLines();
+        drawPlacedBlocks();
+        drawPoppingCells();
+        if (ghostBlock) drawGhostBlock();
+
+        if (currentMessage) {
             const elapsed = Date.now() - currentMessage.startTime;
             if (elapsed < currentMessage.duration) {
                 const alpha = 1 - (elapsed / currentMessage.duration);
@@ -646,7 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        if (!isPaused && !isGameOver) {
+        if (!isPaused) {
             animationFrameId = requestAnimationFrame(draw);
         }
     }
@@ -773,9 +829,14 @@ document.addEventListener('DOMContentLoaded', () => {
         updateScore();
         
         audioManager.setVolume(volumeSlider.value);
+        if (!audioManager.isMuted) {
+            audioManager.playBgMusic();
+        }
         body.addEventListener('click', () => {
             audioManager.unlockAudio();
-            audioManager.playBgMusic();
+             if (!audioManager.isMuted) {
+                audioManager.playBgMusic();
+            }
         }, { once: true });
 
         generateAvailableBlocks();
