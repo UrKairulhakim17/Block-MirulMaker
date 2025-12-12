@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Block Puzzle Mirul Maker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="main-menu">
+        <div class="menu-content">
+            <h1>Block Puzzle Mirul Maker</h1>
+            <button id="classic-mode-btn">Game Classic</button>
+            <button id="level-mode-btn">Game Berlevel</button>
+        </div>
+    </div>
+
+    <div class="header" style="display: none;">
+        <h1>Block Puzzle Mirul Maker</h1>
+        <div class="volume-control">
+            <label for="volume-slider">Volume:</label>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="0.5">
+        </div>
+        <button id="theme-switcher">Toggle Theme</button>
+        <button id="pause-button">Pause</button>
+        <button id="back-to-menu-btn">Back to Menu</button>
+    </div>
+    <div class="game-container" style="display: none;">
+        <div class="score-container">
+            Score: <span id="score">0</span>
+            <div class="progress-bar-container">
+                <div id="progress-bar"></div>
+            </div>
+        </div>
+        <div class="high-score-container">
+            Highest Score: <span id="high-score">0</span>
+        </div>
+        <canvas id="gameGrid" width="400" height="400"></canvas>
+        <div id="block-container">
+            <!-- Available blocks will be generated here by JS -->
+        </div>
+        <audio id="game-over-music" src="music/game-over.mp3"></audio>
+        <audio id="background-music" loop src="music/game-music-loop-6-144641.mp3"></audio>
+        <audio id="line-clear-sound" src="music/power-up-sparkle.mp3"></audio>
+        <audio id="power-up-sound" src="music/power-up-sparkle.mp3"></audio>
+        <audio id="explosion-sound" src="music/power-up-sparkle.mp3"></audio>
+    </div>
+    <div id="pause-menu">
+        <div class="pause-menu-content">
+            <h2>Game Paused</h2>
+            <button id="resume-button">Resume</button>
+            <button id="restart-button">Restart</button>
+            <button id="mute-button">Mute</button>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+    <script src="script.js"></script>
